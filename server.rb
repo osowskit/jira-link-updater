@@ -48,9 +48,7 @@ client.connection_options[:ssl] = { :verify => false }
 
 post '/payload' do
   github_event = request.env['HTTP_X_GITHUB_EVENT']
-  if github_event == "installation" || github_event == "installation_repositories"
-    parse_installation_payload(request.body.read)
-  elsif github_event == "issue_comment"
+  if github_event == "issue_comment"
     replace_comment(request.body.read)
   else
     puts "New event #{github_event}"
@@ -78,22 +76,23 @@ def replace_comment(request)
 
   webhook_json = JSON.parse(request)
   webhook_action = webhook_json["action"]
-  
+
+  # Ignore Updated or Deleted comments
   if webhook_action != "created"
     return 201
   end
-  
+
   new_comment = update_comment(issue_comment)
   if new_comment != ""
-    pull_request_json = webhook_json["issue"]    
+    pull_request_json = webhook_json["issue"]
     issue_comment = webhook_json["comment"]["body"]
     comment_id = webhook_json["comment"]["id"]
     repo_name = webhook_json["repository"]["full_name"]
 
     installation_id = webhook_json["installation"]["id"]
-    access_tokens_url = "https://10.100.198.128/api/v3/installations/#{installation_id}/access_tokens"
+    access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
     access_token = get_app_token(access_tokens_url)
-    
+
     client = Octokit::Client.new(access_token: access_token )
     Octokit.default_media_type ="application/vnd.github.black-cat-preview"
 
@@ -127,11 +126,11 @@ def get_app_token(access_tokens_url)
   }
 
   response = RestClient::Request.execute(
-    :method => :post, 
+    :method => :post,
     :url => access_tokens_url,
-    :headers => headers, 
-    :payload =>{}, 
-    :verify_ssl => OpenSSL::SSL::VERIFY_NONE 
+    :headers => headers,
+    :payload =>{},
+    :verify_ssl => OpenSSL::SSL::VERIFY_NONE
   )
 
   puts app_token = JSON.parse(response)
