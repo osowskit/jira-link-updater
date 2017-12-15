@@ -51,20 +51,15 @@ post '/payload' do
 end
 
 def update_comment(comment_text)
-  new_comment = ""
-  match_data = comment_text.match(/\[(?<id>\w+\-\w+)\]/)
-  if match_data != nil
-    jira_id = match_data[:id]
-    match = match_data[0]
-    if comment_text.index(match) >= 0
-      jira_id = match_data[:id]
-      jira_link = "[#{match}](#{JIRA_HOSTNAME}/browse/#{jira_id})"
-      # optionally test link....
-      new_comment = comment_text.gsub(match, jira_link)
-      puts new_comment
-    end
+  found_results = false
+  comment_text.scan(/(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
+    found_results = true
+    jira_link = "[#{text}](#{JIRA_HOSTNAME}/browse/#{id})"
+    # optionally test link....
+    comment_text = comment_text.gsub(text, jira_link)
   end
-  return new_comment
+
+  return found_results ? comment_text : ""
 end
 
 def replace_comment(request)
