@@ -138,7 +138,7 @@ def get_app_token(access_tokens_url)
       :payload =>{},
       :verify_ssl => OpenSSL::SSL::VERIFY_NONE
     )
-    puts app_token = JSON.parse(response)
+    app_token = JSON.parse(response)
     token = app_token["token"]
   rescue Exception => e
     puts e
