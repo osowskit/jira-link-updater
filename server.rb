@@ -45,6 +45,10 @@ post '/payload' do
   github_event = request.env['HTTP_X_GITHUB_EVENT']
   if github_event == "issue_comment"
     replace_comment(request.body.read)
+  elsif github_event == "issues"
+    replace_issue_body(request.body.read, "issue")
+  elsif github_event == "pull_request"
+    replace_issue_body(request.body.read, "pull_request")
   else
     puts "New event #{github_event}"
   end
@@ -61,6 +65,40 @@ def update_comment(comment_text)
 
   return found_results ? comment_text : ""
 end
+
+def replace_issue_body(request, event_type)
+
+  webhook_json = JSON.parse(request)
+  webhook_action = webhook_json["action"]
+
+  # Ignore Updated or Deleted comments
+  if webhook_action == "opened"
+    issue_body = webhook_json[event_type]["body"]
+    new_body = update_comment(issue_body)
+
+    if new_body != ""
+      issue_number = webhook_json[event_type]["number"]
+      repo_name = webhook_json["repository"]["full_name"]
+
+      installation_id = webhook_json["installation"]["id"]
+      access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
+      access_token = get_app_token(access_tokens_url)
+
+      if access_token != ""
+        client = Octokit::Client.new(access_token: access_token )
+        Octokit.default_media_type ="application/vnd.github.black-cat-preview"
+        options = {
+          body: new_body
+        }
+        update_result = client.update_issue(repo_name, issue_number, options)
+        return 201
+      end
+    end
+  end
+
+  return 200
+end
+
 
 def replace_comment(request)
 
