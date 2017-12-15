@@ -30,15 +30,16 @@ rescue Exception => e
   end
 end
 
-
+# Configure GitHub Enterprise
 Octokit.configure do |c|
   c.api_endpoint = "#{GITHUB_HOSTNAME}/api/v3/"
   c.web_endpoint = GITHUB_HOSTNAME
-  c.auto_paginate = true
 end
 
+# GitHub Apps in preview require Accept header
 Octokit.default_media_type = "application/vnd.github.machine-man-preview+json"
 client = Octokit::Client.new
+# Allow untrusted certificates in Development
 client.connection_options[:ssl] = { :verify => false }
 
 post '/payload' do
@@ -54,6 +55,8 @@ post '/payload' do
   end
 end
 
+# Parse text matching common JIRA ID strings. e.g. `[SENG-1234]`
+# Returns updated text with URL to JIRA ticket or empty string
 def update_comment(comment_text)
   found_results = false
   comment_text.scan(/(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
@@ -66,6 +69,7 @@ def update_comment(comment_text)
   return found_results ? comment_text : ""
 end
 
+# Replace JIRA IDs when an Issue or Pull Request is created
 def replace_issue_body(request, event_type)
 
   webhook_json = JSON.parse(request)
@@ -99,7 +103,7 @@ def replace_issue_body(request, event_type)
   return 200
 end
 
-
+# Replace JIRA IDs when an Issue or Pull Request comment is created
 def replace_comment(request)
 
   webhook_json = JSON.parse(request)
@@ -148,6 +152,7 @@ def get_jwt
   JWT.encode(payload, private_key, "RS256")
 end
 
+# TODO: Fix octokit.rb to allow generating token on GitHub Enterprise
 def get_app_token(access_tokens_url)
   token = ""
   jwt = get_jwt
