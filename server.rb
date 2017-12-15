@@ -85,7 +85,6 @@ def replace_comment(request)
     new_comment = update_comment(issue_comment)
 
     if new_comment != ""
-      pull_request_json = webhook_json["issue"]
       comment_id = webhook_json["comment"]["id"]
       repo_name = webhook_json["repository"]["full_name"]
 
@@ -93,11 +92,13 @@ def replace_comment(request)
       access_tokens_url = "https://10.100.198.128/api/v3/installations/#{installation_id}/access_tokens"
       access_token = get_app_token(access_tokens_url)
 
-      client = Octokit::Client.new(access_token: access_token )
-      Octokit.default_media_type ="application/vnd.github.black-cat-preview"
+      if access_token != ""
+        client = Octokit::Client.new(access_token: access_token )
+        Octokit.default_media_type ="application/vnd.github.black-cat-preview"
 
-      update_result = client.update_comment(repo_name, comment_id, new_comment)
-      return 201
+        update_result = client.update_comment(repo_name, comment_id, new_comment)
+        return 201
+      end
     end
   end
 
@@ -122,20 +123,27 @@ def get_jwt
 end
 
 def get_app_token(access_tokens_url)
+  token = ""
   jwt = get_jwt
   headers = {
     authorization: "Bearer #{jwt}",
     accept: "application/vnd.github.machine-man-preview+json"
   }
 
-  response = RestClient::Request.execute(
-    :method => :post,
-    :url => access_tokens_url,
-    :headers => headers,
-    :payload =>{},
-    :verify_ssl => OpenSSL::SSL::VERIFY_NONE
-  )
+  begin
+    response = RestClient::Request.execute(
+      :method => :post,
+      :url => access_tokens_url,
+      :headers => headers,
+      :payload =>{},
+      :verify_ssl => OpenSSL::SSL::VERIFY_NONE
+    )
+    puts app_token = JSON.parse(response)
+    token = app_token["token"]
+  rescue Exception => e
+    puts e
+    puts e.http_body
+  end
 
-  puts app_token = JSON.parse(response)
-  app_token["token"]
+  return token
 end
