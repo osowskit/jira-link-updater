@@ -11,26 +11,19 @@ $stdout.sync = true
 begin
   yml = File.open('ghe-tommy.yaml')
   contents = YAML.load(yml)
-  # Load from YAML file
-  GITHUB_HOSTNAME = "https://10.100.198.128/"
 
-  GITHUB_CLIENT_ID = contents["client_id"]
-  GITHUB_CLIENT_SECRET = contents["client_secret"]
   GITHUB_APP_KEY = File.read(contents["private_key"])
   GITHUB_APP_ID = contents["app_id"]
-#  GITHUB_HOSTNAME = contents["github_hostname"]
+  GITHUB_HOSTNAME = contents["github_hostname"]
+  JIRA_HOSTNAME = contents["jira_hostname"]
 rescue Exception => e
   begin
-    GITHUB_CLIENT_ID = ENV.fetch("GITHUB_CLIENT_ID")
-    GITHUB_CLIENT_SECRET =  ENV.fetch("GITHUB_CLIENT_SECRET")
     GITHUB_APP_KEY = ENV.fetch("GITHUB_APP_KEY")
     GITHUB_APP_ID = ENV.fetch("GITHUB_APP_ID")
-    # Load from YAML file
-    # GITHUB_HOSTNAME = ENV.fetch("GITHUB_APP_ID")
+    GITHUB_HOSTNAME = ENV.fetch("GITHUB_APP_ID")
+    JIRA_HOSTNAME = ENV.fetch("JIRA_HOSTNAME")
   rescue KeyError
     $stderr.puts "To run this script, please set the following environment variables:"
-    $stderr.puts "- GITHUB_CLIENT_ID: GitHub Developer Application Client ID"
-    $stderr.puts "- GITHUB_CLIENT_SECRET: GitHub Developer Application Client Secret"
     $stderr.puts "- GITHUB_APP_KEY: GitHub App Private Key"
     $stderr.puts "- GITHUB_APP_ID: GitHub App ID"
     exit 1
@@ -65,7 +58,7 @@ def update_comment(comment_text)
     match = match_data[0]
     if comment_text.index(match) >= 0
       jira_id = match_data[:id]
-      jira_link = "[#{match}](https://osowskit.atlassian.net/browse/#{jira_id})"
+      jira_link = "[#{match}](#{JIRA_HOSTNAME}/browse/#{jira_id})"
       # optionally test link....
       new_comment = comment_text.gsub(match, jira_link)
       puts new_comment
@@ -89,7 +82,7 @@ def replace_comment(request)
       repo_name = webhook_json["repository"]["full_name"]
 
       installation_id = webhook_json["installation"]["id"]
-      access_tokens_url = "https://10.100.198.128/api/v3/installations/#{installation_id}/access_tokens"
+      access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
       access_token = get_app_token(access_tokens_url)
 
       if access_token != ""
