@@ -11,6 +11,7 @@ $stdout.sync = true
 begin
   yml = File.open('ghe-tommy.yaml')
   contents = YAML.load(yml)
+  # Load from YAML file
   GITHUB_HOSTNAME = "https://10.100.198.128/"
 
   GITHUB_CLIENT_ID = contents["client_id"]
@@ -24,6 +25,8 @@ rescue Exception => e
     GITHUB_CLIENT_SECRET =  ENV.fetch("GITHUB_CLIENT_SECRET")
     GITHUB_APP_KEY = ENV.fetch("GITHUB_APP_KEY")
     GITHUB_APP_ID = ENV.fetch("GITHUB_APP_ID")
+    # Load from YAML file
+    # GITHUB_HOSTNAME = ENV.fetch("GITHUB_APP_ID")
   rescue KeyError
     $stderr.puts "To run this script, please set the following environment variables:"
     $stderr.puts "- GITHUB_CLIENT_ID: GitHub Developer Application Client ID"
@@ -41,7 +44,6 @@ Octokit.configure do |c|
   c.auto_paginate = true
 end
 
-set :public_folder, 'public'
 Octokit.default_media_type = "application/vnd.github.machine-man-preview+json"
 client = Octokit::Client.new
 client.connection_options[:ssl] = { :verify => false }
@@ -57,7 +59,7 @@ end
 
 def update_comment(comment_text)
   new_comment = ""
-  match_data = comment_text.match(/\[(?<id>\w+\-\w)\]/)
+  match_data = comment_text.match(/\[(?<id>\w+\-\w+)\]/)
   if match_data != nil
     jira_id = match_data[:id]
     match = match_data[0]
@@ -78,27 +80,28 @@ def replace_comment(request)
   webhook_action = webhook_json["action"]
 
   # Ignore Updated or Deleted comments
-  if webhook_action != "created"
-    return 201
-  end
-
-  new_comment = update_comment(issue_comment)
-  if new_comment != ""
-    pull_request_json = webhook_json["issue"]
+  if webhook_action == "created"
     issue_comment = webhook_json["comment"]["body"]
-    comment_id = webhook_json["comment"]["id"]
-    repo_name = webhook_json["repository"]["full_name"]
+    new_comment = update_comment(issue_comment)
 
-    installation_id = webhook_json["installation"]["id"]
-    access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
-    access_token = get_app_token(access_tokens_url)
+    if new_comment != ""
+      pull_request_json = webhook_json["issue"]
+      comment_id = webhook_json["comment"]["id"]
+      repo_name = webhook_json["repository"]["full_name"]
 
-    client = Octokit::Client.new(access_token: access_token )
-    Octokit.default_media_type ="application/vnd.github.black-cat-preview"
+      installation_id = webhook_json["installation"]["id"]
+      access_tokens_url = "https://10.100.198.128/api/v3/installations/#{installation_id}/access_tokens"
+      access_token = get_app_token(access_tokens_url)
 
-    update_result = client.update_comment(repo_name, comment_id, new_comment)
+      client = Octokit::Client.new(access_token: access_token )
+      Octokit.default_media_type ="application/vnd.github.black-cat-preview"
+
+      update_result = client.update_comment(repo_name, comment_id, new_comment)
+      return 201
+    end
   end
-  return "200"
+
+  return 200
 end
 
 
@@ -119,7 +122,7 @@ def get_jwt
 end
 
 def get_app_token(access_tokens_url)
-  puts jwt = get_jwt
+  jwt = get_jwt
   headers = {
     authorization: "Bearer #{jwt}",
     accept: "application/vnd.github.machine-man-preview+json"
