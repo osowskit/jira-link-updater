@@ -26,6 +26,7 @@ rescue Exception => e
     $stderr.puts "To run this script, please set the following environment variables:"
     $stderr.puts "- GITHUB_APP_KEY: GitHub App Private Key"
     $stderr.puts "- GITHUB_APP_ID: GitHub App ID"
+    $stderr.puts "- JIRA_HOSTNAME: FQDN to a JIRA instance"
     exit 1
   end
 end
