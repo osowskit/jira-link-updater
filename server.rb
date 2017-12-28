@@ -14,13 +14,17 @@ begin
 
   GITHUB_APP_KEY = File.read(contents["private_key"])
   GITHUB_APP_ID = contents["app_id"]
-  GITHUB_HOSTNAME = contents["github_hostname"]
   JIRA_HOSTNAME = contents["jira_hostname"]
+  if contents.has_key?('github_hostname')
+    GITHUB_HOSTNAME = contents["github_hostname"]
+  else
+    GITHUB_HOSTNAME = ""
+  end
 rescue Exception => e
   begin
     GITHUB_APP_KEY = ENV.fetch("GITHUB_APP_KEY")
     GITHUB_APP_ID = ENV.fetch("GITHUB_APP_ID")
-    GITHUB_HOSTNAME = ENV.fetch("GITHUB_APP_ID")
+    GITHUB_HOSTNAME = ENV.fetch("GITHUB_HOSTNAME", NULL)
     JIRA_HOSTNAME = ENV.fetch("JIRA_HOSTNAME")
   rescue KeyError
     $stderr.puts "To run this script, please set the following environment variables:"
@@ -31,17 +35,23 @@ rescue Exception => e
   end
 end
 
-# Configure GitHub Enterprise
-Octokit.configure do |c|
-  c.api_endpoint = "#{GITHUB_HOSTNAME}/api/v3/"
-  c.web_endpoint = GITHUB_HOSTNAME
+if GITHUB_HOSTNAME != ''
+  GITHUB_API_ENDPOINT = "#{GITHUB_HOSTNAME}/api/v3"
+  # Configure GitHub Enterprise
+  Octokit.configure do |c|
+    c.api_endpoint = GITHUB_API_ENDPOINT
+    c.web_endpoint = GITHUB_HOSTNAME
+
+    # Allow untrusted certificates in Development
+    c.connection_options[:ssl] = { :verify => false }
+  end
+else
+  GITHUB_API_ENDPOINT = "https://api.github.com"
 end
 
 # GitHub Apps in preview require Accept header
 Octokit.default_media_type = "application/vnd.github.machine-man-preview+json"
 client = Octokit::Client.new
-# Allow untrusted certificates in Development
-client.connection_options[:ssl] = { :verify => false }
 
 post '/payload' do
   github_event = request.env['HTTP_X_GITHUB_EVENT']
@@ -86,7 +96,8 @@ def replace_issue_body(request, event_type)
       repo_name = webhook_json["repository"]["full_name"]
 
       installation_id = webhook_json["installation"]["id"]
-      access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
+      access_tokens_url = url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
+      # Octokit does not support getting GitHub Enterprise access tokens
       access_token = get_app_token(access_tokens_url)
 
       if access_token != ""
@@ -120,7 +131,8 @@ def replace_comment(request)
       repo_name = webhook_json["repository"]["full_name"]
 
       installation_id = webhook_json["installation"]["id"]
-      access_tokens_url = "#{GITHUB_HOSTNAME}/api/v3/installations/#{installation_id}/access_tokens"
+      access_tokens_url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
+      puts access_tokens_url
       access_token = get_app_token(access_tokens_url)
 
       if access_token != ""
