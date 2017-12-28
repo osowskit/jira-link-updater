@@ -13,7 +13,6 @@ begin
 
   GITHUB_APP_KEY = File.read(contents["private_key"])
   GITHUB_APP_ID = contents["app_id"]
-  JIRA_HOSTNAME = contents["jira_hostname"]
   if contents.has_key?('github_hostname')
     GITHUB_HOSTNAME = contents["github_hostname"]
   else
@@ -24,12 +23,10 @@ rescue Exception => e
     GITHUB_APP_KEY = ENV.fetch("GITHUB_APP_KEY")
     GITHUB_APP_ID = ENV.fetch("GITHUB_APP_ID")
     GITHUB_HOSTNAME = ENV.fetch("GITHUB_HOSTNAME", '')
-    JIRA_HOSTNAME = ENV.fetch("JIRA_HOSTNAME")
   rescue KeyError
     $stderr.puts "To run this script, please set the following environment variables:"
     $stderr.puts "- GITHUB_APP_KEY: GitHub App Private Key"
     $stderr.puts "- GITHUB_APP_ID: GitHub App ID"
-    $stderr.puts "- JIRA_HOSTNAME: FQDN to a JIRA instance"
     exit 1
   end
 end
