@@ -2,7 +2,6 @@ require 'sinatra'
 require 'jwt'
 require 'rest_client'
 require 'json'
-require 'active_support/all'
 require 'octokit'
 require 'yaml'
 
@@ -68,16 +67,24 @@ end
 
 # Parse text matching common JIRA ID strings. e.g. `[SENG-1234]`
 # Returns updated text with URL to JIRA ticket or empty string
-def update_comment(comment_text)
+def update_comment(comment_text, jira_hostname)
   found_results = false
   comment_text.scan(/(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
     found_results = true
-    jira_link = "[#{text}](#{JIRA_HOSTNAME}/browse/#{id})"
+    jira_link = "[#{text}](#{jira_hostname}/browse/#{id})"
     # optionally test link....
     comment_text = comment_text.gsub(text, jira_link)
   end
 
   return found_results ? comment_text : ""
+end
+
+def get_jira_hostname(access_token, repo_fullname)
+  client = Octokit::Client.new(access_token: access_token)
+  result = client.contents(repo_fullname, :path => 'JIRA_SETTINGS.yaml')
+
+  yaml_content = YAML.load(Base64.decode64(result[:content]))
+  return yaml_content['jira_hostname']
 end
 
 # Replace JIRA IDs when an Issue or Pull Request is created
@@ -89,16 +96,20 @@ def replace_issue_body(request, event_type)
   # Ignore Updated or Deleted comments
   if webhook_action == "opened"
     issue_body = webhook_json[event_type]["body"]
-    new_body = update_comment(issue_body)
+
+    repo_name = webhook_json["repository"]["full_name"]
+
+    installation_id = webhook_json["installation"]["id"]
+    access_tokens_url = url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
+    # Octokit does not support getting GitHub Enterprise access tokens
+    access_token = get_app_token(access_tokens_url)
+    jira_hostname = get_jira_hostname(access_token, repo_name)
+
+    new_body = update_comment(issue_body, jira_hostname)
 
     if new_body != ""
       issue_number = webhook_json[event_type]["number"]
-      repo_name = webhook_json["repository"]["full_name"]
 
-      installation_id = webhook_json["installation"]["id"]
-      access_tokens_url = url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
-      # Octokit does not support getting GitHub Enterprise access tokens
-      access_token = get_app_token(access_tokens_url)
 
       if access_token != ""
         client = Octokit::Client.new(access_token: access_token )
@@ -124,16 +135,17 @@ def replace_comment(request)
   # Ignore Updated or Deleted comments
   if webhook_action == "created"
     issue_comment = webhook_json["comment"]["body"]
-    new_comment = update_comment(issue_comment)
+    repo_name = webhook_json["repository"]["full_name"]
+
+    installation_id = webhook_json["installation"]["id"]
+    access_tokens_url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
+    access_token = get_app_token(access_tokens_url)
+
+    jira_hostname = get_jira_hostname(access_token, repo_name)
+    new_comment = update_comment(issue_comment, jira_hostname)
 
     if new_comment != ""
       comment_id = webhook_json["comment"]["id"]
-      repo_name = webhook_json["repository"]["full_name"]
-
-      installation_id = webhook_json["installation"]["id"]
-      access_tokens_url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
-      puts access_tokens_url
-      access_token = get_app_token(access_tokens_url)
 
       if access_token != ""
         client = Octokit::Client.new(access_token: access_token )
@@ -157,7 +169,7 @@ def get_jwt
     # issued at time
     iat: Time.now.to_i,
     # JWT expiration time (10 minute maximum)
-    exp: 9.minutes.from_now.to_i,
+    exp: DateTime.now.new_offset('+00:10').to_time.to_i,
     # Integration's GitHub identifier
     iss: GITHUB_APP_ID
   }
