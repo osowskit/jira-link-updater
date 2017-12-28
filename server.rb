@@ -23,7 +23,7 @@ rescue Exception => e
   begin
     GITHUB_APP_KEY = ENV.fetch("GITHUB_APP_KEY")
     GITHUB_APP_ID = ENV.fetch("GITHUB_APP_ID")
-    GITHUB_HOSTNAME = ENV.fetch("GITHUB_HOSTNAME", NULL)
+    GITHUB_HOSTNAME = ENV.fetch("GITHUB_HOSTNAME", '')
     JIRA_HOSTNAME = ENV.fetch("JIRA_HOSTNAME")
   rescue KeyError
     $stderr.puts "To run this script, please set the following environment variables:"
