@@ -2,7 +2,7 @@
 
 Ever add JIRA ticket id to an Issue or Pull Request and wish it would link directly to the ticket. This GitHub App replaces JIRA IDs in Issue comments with a URL to the JIRA issue.
 
-## Instructions
+## GitHub Enterprise Instructions
 
 1. Set up a new [GitHub App](https://developer.github.com/apps/) on your GitHub Enterprise +2.12 instance.
     - Issues permissions - **Read and Write**
