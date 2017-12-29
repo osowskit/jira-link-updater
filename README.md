@@ -8,8 +8,8 @@ Instructions to configure GitHub.com repositories.
 
 1. Visit [jira-link-updater](https://github.com/apps/jira-link-updater) app and grant it access to your repositories.
 1. Add a configuration file to each repository to set a path to your JIRA instance.
-  - Filename: `JIRA_SETTINGS.yaml`
-  - Example:
+    - Filename: `JIRA_SETTINGS.yaml`
+    - Example:
     ```
     jira_hostname: "https://[SERVERNAME].atlassian.net"
     ```
