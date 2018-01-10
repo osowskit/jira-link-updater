@@ -1,4 +1,4 @@
-# jira-link-updater
+# Overview
 
 Ever add a JIRA ticket id to an Issue or Pull Request and wish it would link directly to the ticket. This GitHub App replaces JIRA IDs in comments with a URL to the JIRA issue. :tada:
 
