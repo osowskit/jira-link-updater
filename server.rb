@@ -71,7 +71,6 @@ def update_comment(comment_text, jira_hostname)
   # (?<=^|[\s]) avoids matching updated links. Won't match [[XYZ-123](atlassian.net)] 
   comment_text.scan(/(?<=^|[\s])(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
     found_results = true
-    puts "found result: #{found_results}"
     jira_link = "[#{text}](#{jira_hostname}/browse/#{id})"
     # optionally test link....
     comment_text = comment_text.gsub(text, jira_link)
@@ -101,9 +100,9 @@ def replace_issue_body(request, event_type)
     repo_name = webhook_json["repository"]["full_name"]
 
     installation_id = webhook_json["installation"]["id"]
-    access_tokens_url = url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
+
     # Octokit does not support getting GitHub Enterprise access tokens
-    access_token = get_app_token(access_tokens_url)
+    access_token = get_app_token(installation_id)
     jira_hostname = get_jira_hostname(access_token, repo_name)
 
     new_body = update_comment(issue_body, jira_hostname)
@@ -138,8 +137,7 @@ def replace_comment(request)
     repo_name = webhook_json["repository"]["full_name"]
 
     installation_id = webhook_json["installation"]["id"]
-    access_tokens_url = "#{GITHUB_API_ENDPOINT}/installations/#{installation_id}/access_tokens"
-    access_token = get_app_token(access_tokens_url)
+    access_token = get_app_token(installation_id)
 
     jira_hostname = get_jira_hostname(access_token, repo_name)
     new_comment = update_comment(issue_comment, jira_hostname)
@@ -177,29 +175,15 @@ def get_jwt
   JWT.encode(payload, private_key, "RS256")
 end
 
-# TODO: Fix octokit.rb to allow generating token on GitHub Enterprise
-def get_app_token(access_tokens_url)
-  token = ""
-  jwt = get_jwt
-  headers = {
-    authorization: "Bearer #{jwt}",
-    accept: "application/vnd.github.machine-man-preview+json"
-  }
+def get_app_token(installation_id)
 
   begin
-    response = RestClient::Request.execute(
-      :method => :post,
-      :url => access_tokens_url,
-      :headers => headers,
-      :payload =>{},
-      :verify_ssl => OpenSSL::SSL::VERIFY_NONE
-    )
-    app_token = JSON.parse(response)
-    token = app_token["token"]
+    @jwt_client = Octokit::Client.new(:bearer_token => get_jwt)
+    return_token = @jwt_client.create_app_installation_access_token(installation_id)
   rescue Exception => e
     puts e
     puts e.http_body
   end
 
-  return token
+  return return_token.token
 end
