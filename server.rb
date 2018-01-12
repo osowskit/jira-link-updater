@@ -5,6 +5,8 @@ require 'json'
 require 'octokit'
 require 'yaml'
 
+ISSUE_EVENTS = ['opened'].freeze
+COMMENT_EVENTS = ['created', 'edited'].freeze
 $stdout.sync = true
 
 begin
@@ -66,8 +68,10 @@ end
 # Returns updated text with URL to JIRA ticket or empty string
 def update_comment(comment_text, jira_hostname)
   found_results = false
-  comment_text.scan(/(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
+  # (?<=^|[\s]) avoids matching updated links. Won't match [[XYZ-123](atlassian.net)] 
+  comment_text.scan(/(?<=^|[\s])(?<full>\[(?<id>\w+\-\w+)\])/) do | text, id  |
     found_results = true
+    puts "found result: #{found_results}"
     jira_link = "[#{text}](#{jira_hostname}/browse/#{id})"
     # optionally test link....
     comment_text = comment_text.gsub(text, jira_link)
@@ -90,8 +94,8 @@ def replace_issue_body(request, event_type)
   webhook_json = JSON.parse(request)
   webhook_action = webhook_json["action"]
 
-  # Ignore Updated or Deleted comments
-  if webhook_action == "opened"
+  # Ignore Deleted comments or updates from bots
+  if ISSUE_EVENTS.include?(webhook_action) && webhook_json["sender"]["type"] != "bot"
     issue_body = webhook_json[event_type]["body"]
 
     repo_name = webhook_json["repository"]["full_name"]
@@ -106,7 +110,6 @@ def replace_issue_body(request, event_type)
 
     if new_body != ""
       issue_number = webhook_json[event_type]["number"]
-
 
       if access_token != ""
         client = Octokit::Client.new(access_token: access_token )
@@ -130,7 +133,7 @@ def replace_comment(request)
   webhook_action = webhook_json["action"]
 
   # Ignore Updated or Deleted comments
-  if webhook_action == "created"
+  if COMMENT_EVENTS.include?(webhook_action) && webhook_json["sender"]["type"] != "bot"
     issue_comment = webhook_json["comment"]["body"]
     repo_name = webhook_json["repository"]["full_name"]
 
