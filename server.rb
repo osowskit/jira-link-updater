@@ -5,7 +5,7 @@ require 'json'
 require 'octokit'
 require 'yaml'
 
-ISSUE_EVENTS = ['opened'].freeze
+ISSUE_EVENTS = ['opened', 'edited'].freeze
 COMMENT_EVENTS = ['created', 'edited'].freeze
 $stdout.sync = true
 
